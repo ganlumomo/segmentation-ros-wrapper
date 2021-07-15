@@ -1,0 +1,3 @@
+[submodule "scripts/semantic-segmentation"]
+	path = scripts/semantic-segmentation
+	url = https://github.com/ganlumomo/semantic-segmentation.git
