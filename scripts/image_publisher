@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+# ros
+import rospy
+import tf
+import cv2
+from sensor_msgs.msg import PointCloud2, PointField, Image
+from cv_bridge import CvBridge
+from geometry_msgs.msg import Pose, PoseStamped, PoseWithCovarianceStamped
+from nav_msgs.msg import Path
+
+import numpy as np
+
+class TartanAirPlayerNode:
+    def __init__(self):
+        
+        # define camera parameters
+        self.fx = 320.0 # focal length x
+        self.fy = 320.0 # focal length y
+        self.cx = 320.0 # optical center x
+        self.cy = 240.0 # optical center y
+        self.width = 640
+        self.height = 480
+
+        self.init_trans_to_ground = np.array([[1, 0, 0, 0],
+                                              [0, 0, 1, 0],
+                                              [0, -1, 0, 1],
+                                              [0, 0, 0, 1]], dtype = np.float32)
+
+        self.br = CvBridge()
+
+        # define msg publishers
+        self.pc2_publisher = rospy.Publisher("points", PointCloud2, queue_size = 1)
+        #self.pc2_global_publisher = rospy.Publisher("points_global", PointCloud2, queue_size = 1)
+        self.pose_publisher = rospy.Publisher("pose", PoseWithCovarianceStamped, queue_size = 1)
+        self.path_publisher = rospy.Publisher("path", Path, queue_size = 1)
+        self.left_color_image_publisher = rospy.Publisher("left_color_image", Image, queue_size = 1)
+        self.left_depth_image_publisher = rospy.Publisher("left_depth_image", Image, queue_size = 1)
+
+        # run node
+        rospy.init_node('tartan_air_player_node', anonymous = True)
+        #rospy.Rate(30)
+        seq_dir ="/media/neofelis/Samsung_T5/000_tro2020/tartanair-release1/abandonedfactory/Easy/P001/"
+        left_camera_pose_file = seq_dir + "pose_left.txt"
+        self.depth_left_dir = seq_dir + "depth_left/"
+        self.image_left_dir = seq_dir + "image_left/"
+        self.seg_left_dir = seq_dir + "seg_left/"
+        
+        # init path
+        self.path = Path()
+        self.path.header.frame_id = "map"
+        self.process_scans(100)
+
+    def process_scans(self, scan_num):
+        for scan_id in range(scan_num):
+             rospy.sleep(3.5)
+             stamp = rospy.Time.now()
+
+             # load left img
+             image_left_name = self.image_left_dir + "%06i" % scan_id + "_left.png"
+             print(image_left_name)
+             image_left = cv2.imread(image_left_name)
+             print(image_left)
+             self.left_color_image_publisher.publish(self.br.cv2_to_imgmsg(image_left, encoding="rgb8"))
+
+    def main(self):
+        print("spin..")
+        rospy.spin()
+
+
+if __name__ == "__main__":
+    node = TartanAirPlayerNode()
+    node.main()

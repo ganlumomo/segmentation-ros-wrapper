@@ -11,7 +11,7 @@ import torch
 from torch.backends import cudnn
 import torchvision.transforms as transforms
 
-sys.path.append('semantic-segmentation/')
+sys.path.append("/home/neofelis/seg_mapping_ws/src/segmentation-ros-wrapper/scripts/semantic-segmentation/")
 import network
 from optimizer import restore_snapshot
 from datasets import cityscapes
@@ -20,56 +20,57 @@ from config import assert_and_infer_cfg
 # ROS
 import rospy
 from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
 
 class SegmentationNode:
     def __init__(self):
+        self.set_up()
+        self.get_net()
         rospy.init_node("segmentation_node", anonymous=True)
-        self.img_sub = rospy.Subscriber("image_raw", Image, self.callback, queue_size = 1, buff_size = 2**24)
+        self.img_sub = rospy.Subscriber("left_color_image", Image, self.callback, queue_size = 10, buff_size = 2**24)
         self.semantic_pub = rospy.Publisher("semantic_seg", Image, queue_size = 1)
         self.trav_pub = rospy.Publisher("trav_seg", Image, queue_size = 1)
         rospy.loginfo("Initialization Done. Running Inference...")
 
+    def set_up(self):
+        parser = argparse.ArgumentParser(description='demo')
+        #parser.add_argument('--demo-image', type=str, default='', help='path to demo image', required=True)
+        parser.add_argument('--snapshot', type=str, default='/home/neofelis/seg_mapping_ws/src/segmentation-ros-wrapper/scripts/semantic-segmentation/pretrained_models/cityscapes_best.pth', help='pre-trained checkpoint')
+        parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference')
+        #parser.add_argument('--save-dir', type=str, default='./save', help='path to save your results')
+        self.args = parser.parse_args()
+        assert_and_infer_cfg(self.args, train_mode=False)
+        cudnn.benchmark = False
+        torch.cuda.empty_cache()
+        self.args.dataset_cls = cityscapes
+
+    def get_net(self):
+        net = network.get_net(self.args, criterion=None)
+        net = torch.nn.DataParallel(net).cuda()
+        rospy.loginfo("Net built.")
+        self.net, _ = restore_snapshot(net, optimizer=None, snapshot=self.args.snapshot, restore_optimizer_bool=False)
+        self.net.eval()
+        rospy.loginfo("Net restored.")
+
     def callback(self, img_msg):
-        print('lalal')
+        br = CvBridge()
+        img = br.imgmsg_to_cv2(img_msg , desired_encoding="rgb8") #TODO: RGB or BGR?
+        #print(img)
+        mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(*mean_std)])
+        img_tensor = img_transform(img)
+        with torch.no_grad():
+            img = img_tensor.unsqueeze(0).cuda()
+            pred = self.net(img)
+            rospy.loginfo("Inference done.")
+        pred = pred.cpu().numpy().squeeze()
+        pred = np.argmax(pred, axis=0)
+        print(pred)
 
 if __name__ == '__main__':
     node = SegmentationNode()
     rospy.spin()
 
-
-parser = argparse.ArgumentParser(description='demo')
-parser.add_argument('--demo-image', type=str, default='', help='path to demo image', required=True)
-parser.add_argument('--snapshot', type=str, default='./pretrained_models/cityscapes_best.pth', help='pre-trained checkpoint', required=True)
-parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference')
-parser.add_argument('--save-dir', type=str, default='./save', help='path to save your results')
-args = parser.parse_args()
-assert_and_infer_cfg(args, train_mode=False)
-cudnn.benchmark = False
-torch.cuda.empty_cache()
-
-# get net
-args.dataset_cls = cityscapes
-net = network.get_net(args, criterion=None)
-net = torch.nn.DataParallel(net).cuda()
-print('Net built.')
-net, _ = restore_snapshot(net, optimizer=None, snapshot=args.snapshot, restore_optimizer_bool=False)
-net.eval()
-print('Net restored.')
-
-# get data
-mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(*mean_std)])
-img = Image.open(args.demo_image).convert('RGB')
-img_tensor = img_transform(img)
-
-# predict
-with torch.no_grad():
-    img = img_tensor.unsqueeze(0).cuda()
-    pred = net(img)
-    print('Inference done.')
-
-pred = pred.cpu().numpy().squeeze()
-pred = np.argmax(pred, axis=0)
 
 if not os.path.exists(args.save_dir):
     os.makedirs(args.save_dir)
