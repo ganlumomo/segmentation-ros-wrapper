@@ -15,35 +15,48 @@ sys.path.append("/home/neofelis/seg_mapping_ws/src/segmentation-ros-wrapper/scri
 import network
 from optimizer import restore_snapshot
 from datasets import cityscapes
+from datasets import kitti
 from datasets import rellis3d
 from config import assert_and_infer_cfg
 
 # ROS
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud, ChannelFloat32
+from geometry_msgs.msg import Point32
 from cv_bridge import CvBridge, CvBridgeError
+import message_filters
 
 class SegmentationNode:
     def __init__(self):
         self.set_up()
         self.get_net()
         rospy.init_node("segmentation_node", anonymous=True)
-        self.img_sub = rospy.Subscriber("/camera/color/image_raw", Image, self.callback, queue_size = 10, buff_size = 2**24)
+        #self.img_sub = rospy.Subscriber("/camera/color/image_raw", Image, self.callback, queue_size = 10, buff_size = 2**24)
+        self.color_img_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
+        self.depth_img_sub = message_filters.Subscriber('/camera/aligned_depth_to_color/image_raw', Image)
+        ts = message_filters.ApproximateTimeSynchronizer([self.color_img_sub, self.depth_img_sub], 10, 2**24)
+        ts.registerCallback(self.callback)
         self.semantic_pub = rospy.Publisher("semantic_seg", Image, queue_size = 1)
         self.trav_pub = rospy.Publisher("trav_seg", Image, queue_size = 1)
+        self.labeled_pc_pub = rospy.Publisher("labeled_pointcloud", PointCloud, queue_size = 1)
         rospy.loginfo("Initialization Done. Running Inference...")
 
     def set_up(self):
         parser = argparse.ArgumentParser(description='demo')
         #parser.add_argument('--demo-image', type=str, default='', help='path to demo image', required=True)
-        parser.add_argument('--snapshot', type=str, default='/home/neofelis/seg_mapping_ws/src/segmentation-ros-wrapper/scripts/semantic-segmentation/pretrained_models/best_epoch_5_mean-iu_0.47376.pth', help='pre-trained checkpoint')
+        parser.add_argument('--snapshot', type=str, default='/home/neofelis/seg_mapping_ws/src/segmentation-ros-wrapper/scripts/semantic-segmentation/pretrained_models/kitti_best.pth', help='pre-trained checkpoint')
         parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference')
         #parser.add_argument('--save-dir', type=str, default='./save', help='path to save your results')
         self.args = parser.parse_args()
         assert_and_infer_cfg(self.args, train_mode=False)
         cudnn.benchmark = False
         torch.cuda.empty_cache()
-        self.args.dataset_cls = rellis3d
+        self.args.dataset_cls = kitti
+        self.cx = 318.24
+        self.cy = 246.72
+        self.fx = 383.14
+        self.fy = 382.91
+        self.depth_scaling = 1000
 
     def get_net(self):
         net = network.get_net(self.args, criterion=None)
@@ -53,7 +66,7 @@ class SegmentationNode:
         self.net.eval()
         rospy.loginfo("Net restored.")
 
-    def callback(self, img_msg):
+    def callback(self, img_msg, depth_msg):
         br = CvBridge()
         img = br.imgmsg_to_cv2(img_msg , desired_encoding="rgb8") #TODO: RGB or BGR?
         #print(img)
@@ -68,12 +81,41 @@ class SegmentationNode:
         pred = np.argmax(pred, axis=0)
         #print(pred)
         colorized = self.args.dataset_cls.colorize_mask(pred)
-        colorized.save('color_mask.png')
+        #colorized.save('color_mask.png')
+        print(colorized)
         # Publish colorized pred
-        colorized_msg = img_msg
-        colorized_msg.data = np.array(colorized.convert('RGB')).tobytes()
-        self.semantic_pub.publish(colorized_msg)
+        #colorized_msg = img_msg
+        #colorized_msg.data = np.array(colorized.convert('RGB')).tobytes()
+        #self.semantic_pub.publish(colorized_msg)
+        self.get_labeled_pc(pred, colorized.convert('RGB'), depth_msg)
        
+    def get_labeled_pc(self, pred, colorized, depth_msg):
+        to_publish = PointCloud()
+        to_publish.header = depth_msg.header
+        label_channel = ChannelFloat32()
+        label_channel.name = "labels"
+        label_channel.values = []
+        br = CvBridge()
+        depth_img = br.imgmsg_to_cv2(depth_msg, desired_encoding="16UC1")
+        print(depth_img.shape)
+        print(pred.shape)
+        for i in range(depth_img.shape[0] * depth_img.shape[1]):
+            ux = int(i % depth_img.shape[1])
+            uy = int(i / depth_img.shape[1])
+            #print(ux, uy)
+            pix_depth = float(depth_img[uy,ux] / self.depth_scaling);
+            if pix_depth > 8:
+                continue
+            p = Point32()
+            p.x = (ux-self.cx) * (1.0 / self.fx) * pix_depth
+            p.y = (uy-self.cy) * (1.0 / self.fy) * pix_depth
+            p.z = pix_depth
+            to_publish.points.append(p)
+            label_channel.values.append(pred[uy][ux])
+        to_publish.channels = [label_channel]
+        self.labeled_pc_pub.publish(to_publish)
+
+
 
 
 if __name__ == '__main__':
