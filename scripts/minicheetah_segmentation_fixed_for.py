@@ -121,6 +121,7 @@ class SegmentationNode:
         
         # sjy edit: add pointcloud2
         points = np.array([px,py,pz,pred]).T # 4*N -> N*4
+        print(points.shape)
         points.dtype = [('x', np.float64), ('y', np.float64), ('z', np.float64), ('pred', np.int64)]
         pcl2_msg = ros_numpy.msgify(PointCloud2, points)
         self.labeled_pcl2_pub.publish(pcl2_msg)
