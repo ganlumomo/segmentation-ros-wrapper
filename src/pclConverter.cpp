@@ -26,15 +26,15 @@ public:
   SubscribeAndPublish()
   {
     //Topic you want to publish
-    pub_ = n_.advertise<sensor_msgs::Pointcloud>("/labeled_pointcloud", 1);
+    pub_ = n_.advertise<sensor_msgs::PointCloud>("/labeled_pointcloud", 1);
 
     //Topic you want to subscribe
     sub_ = n_.subscribe("/labeled_pcl2", 1, &SubscribeAndPublish::callback, this);
   }
 
-  void callback(const sensor_msgs::Pointcloud2::ConstPtr& msg)
+  void callback(const sensor_msgs::PointCloud2::ConstPtr& msg)
   {
-    sensor_msgs::Pointcloud out_cloud;
+    sensor_msgs::PointCloud out_cloud;
     sensor_msgs::convertPointCloud2ToPointCloud(msg, out_cloud);
     //.... do something with the input and generate the output...
     pub_.publish(out_cloud);
