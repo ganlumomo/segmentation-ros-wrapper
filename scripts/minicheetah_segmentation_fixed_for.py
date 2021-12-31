@@ -21,10 +21,11 @@ from config import assert_and_infer_cfg
 
 # ROS
 import rospy
-from sensor_msgs.msg import Image, PointCloud, ChannelFloat32
+from sensor_msgs.msg import Image, PointCloud, ChannelFloat32, PointCloud2
 from geometry_msgs.msg import Point32
 from cv_bridge import CvBridge, CvBridgeError
 import message_filters
+import ros_numpy
 
 from copy import deepcopy
 
@@ -42,6 +43,7 @@ class SegmentationNode:
         self.semantic_pub = rospy.Publisher("semantic_seg", Image, queue_size = 1)
         self.trav_pub = rospy.Publisher("trav_seg", Image, queue_size = 1)
         self.labeled_pc_pub = rospy.Publisher("labeled_pointcloud", PointCloud, queue_size = 1)
+        self.labeled_pcl2_pub = rospy.Publisher("labeled_pcl2", PointCloud2, queue_size = 1)
         rospy.loginfo("Initialization Done. Running Inference...")
 
     def set_up(self):
@@ -115,11 +117,19 @@ class SegmentationNode:
         px = px.flatten()
         py = py.flatten()
         pz = pz.flatten()
+        pred = pred.flatten()
         
-        for i in range(len(px)):
-            p = Point32()
-            p.x, p.y, p.z = px[i], py[i], pz[i]
-            to_publish.points.append(p)
+        # sjy edit: add pointcloud2
+        points = np.array([px,py,pz,pred]).T # 4*N -> N*4
+        points.dtype = [('x', np.float64), ('y', np.float64), ('z', np.float64), ('pred', np.int64)]
+        pcl2_msg = ros_numpy.msgify(PointCloud2, points)
+        self.labeled_pcl2_pub.publish(pcl2_msg)
+        return
+
+        # for i in range(len(px)):
+        #     p = Point32()
+        #     p.x, p.y, p.z = px[i], py[i], pz[i]
+        #     to_publish.points.append(p)
         
         # print(pred.shape)
         print(np.max(pred))
