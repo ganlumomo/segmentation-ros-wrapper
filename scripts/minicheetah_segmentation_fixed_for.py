@@ -42,7 +42,7 @@ class SegmentationNode:
         ts.registerCallback(self.callback)
         self.semantic_pub = rospy.Publisher("semantic_seg", Image, queue_size = 1)
         self.trav_pub = rospy.Publisher("trav_seg", Image, queue_size = 1)
-        self.labeled_pc_pub = rospy.Publisher("labeled_pointcloud", PointCloud, queue_size = 1)
+        #self.labeled_pc_pub = rospy.Publisher("labeled_pointcloud", PointCloud, queue_size = 1)
         self.labeled_pcl2_pub = rospy.Publisher("labeled_pcl2", PointCloud2, queue_size = 1)
         rospy.loginfo("Initialization Done. Running Inference...")
 
@@ -122,8 +122,9 @@ class SegmentationNode:
         # sjy edit: add pointcloud2
         points = np.array([px,py,pz,pred]).T # 4*N -> N*4
         print(points.shape)
-        points.dtype = [('x', np.float64), ('y', np.float64), ('z', np.float64), ('pred', np.int64)]
+        points.dtype = [('x', np.float64), ('y', np.float64), ('z', np.float64), ('pred', np.float64)]
         pcl2_msg = ros_numpy.msgify(PointCloud2, points)
+        pcl2_msg.header = depth_msg.header
         self.labeled_pcl2_pub.publish(pcl2_msg)
         return
 

@@ -36,6 +36,7 @@ public:
   {
     sensor_msgs::PointCloud out_cloud;
     sensor_msgs::convertPointCloud2ToPointCloud(*msg, out_cloud);
+    out_cloud.header.frame_id = msg->header.frame_id;
     //.... do something with the input and generate the output...
     pub_.publish(out_cloud);
   }
