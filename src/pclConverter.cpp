@@ -52,7 +52,7 @@ public:
       out_cloud.points.push_back(p);
       values.push_back(points_data[3 + i*stride]);
     }
-    out_cloud.channels.values = values;
+    out_cloud.channels[0].values = values;
     // sensor_msgs::convertPointCloud2ToPointCloud(*msg, out_cloud);
     //.... do something with the input and generate the output...
     pub_.publish(out_cloud);
