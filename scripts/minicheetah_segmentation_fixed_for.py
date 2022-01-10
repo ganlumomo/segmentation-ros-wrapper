@@ -122,12 +122,12 @@ class SegmentationNode:
         pred = pred.flatten()
         
         # sjy edit: add pointcloud2
-        points = np.array([px,py,pz,pred]).T # 4*N -> N*4
-        print(points.shape)
-        points.dtype = [('x', np.float64), ('y', np.float64), ('z', np.float64), ('pred', np.float64)]
-        pcl2_msg = ros_numpy.msgify(PointCloud2, points)
-        pcl2_msg.header = depth_msg.header
-        self.labeled_pcl2_pub.publish(pcl2_msg)
+        # points = np.array([px,py,pz,pred]).T # 4*N -> N*4
+        # print(points.shape)
+        # points.dtype = [('x', np.float64), ('y', np.float64), ('z', np.float64), ('pred', np.float64)]
+        # pcl2_msg = ros_numpy.msgify(PointCloud2, points)
+        # pcl2_msg.header = depth_msg.header
+        # self.labeled_pcl2_pub.publish(pcl2_msg)
 
         # sjy change pointcloud2 to Float32MultiArray
         points = np.array([px,py,pz,pred]).T # 4*N -> N*4
@@ -135,12 +135,12 @@ class SegmentationNode:
         points_msg.data = points.reshape([points.shape[0]*points.shape[1]]).tolist()
         points_msg.layout.data_offset = 0
         points_msg.layout.dim = [MultiArrayDimension(), MultiArrayDimension()]
-        points_msg.flow_data.layout.dim[0].label = "index"
-        points_msg.flow_data.layout.dim[0].size = points.shape[0]
-        points_msg.flow_data.layout.dim[0].stride = points.shape[0]*points.shape[1]
-        points_msg.flow_data.layout.dim[1].label = "position"
-        points_msg.flow_data.layout.dim[1].size = points.shape[1]
-        points_msg.flow_data.layout.dim[1].stride = points.shape[1]
+        points_msg.layout.dim[0].label = "index"
+        points_msg.layout.dim[0].size = points.shape[0]
+        points_msg.layout.dim[0].stride = points.shape[0]*points.shape[1]
+        points_msg.layout.dim[1].label = "position"
+        points_msg.layout.dim[1].size = points.shape[1]
+        points_msg.layout.dim[1].stride = points.shape[1]
         self.labeled_pc_array_pub.publish(points_msg)
 
         return

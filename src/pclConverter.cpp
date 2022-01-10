@@ -4,6 +4,7 @@
 #include <sensor_msgs/point_cloud_conversion.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <geometry_msgs/Point32.h>
+#include <sensor_msgs/ChannelFloat32.h>
 
 // void pclConverterCallback(const sensor_msgs::Pointcloud2::ConstPtr& msg)
 // {
@@ -43,16 +44,18 @@ public:
     int w = msg->layout.dim[1].size;
     int stride = msg->layout.dim[1].stride;
     geometry_msgs::Point32 p;
-    std::vector<float> values;
+    std::vector<ChannelFloat32> channels;
+    sensor_msgs::ChannelFloat32 channel;
     for (int i = 0; i < h; ++i)
     {
       p.x = points_data[0 + i*stride];
       p.y = points_data[1 + i*stride];
       p.z = points_data[2 + i*stride];
       out_cloud.points.push_back(p);
-      values.push_back(points_data[3 + i*stride]);
+      channel.values.push_back(points_data[3 + i*stride]);
     }
-    out_cloud.channels[0].values = values;
+    channels.push_back(channel);
+    out_cloud.channels = channels;
     // sensor_msgs::convertPointCloud2ToPointCloud(*msg, out_cloud);
     //.... do something with the input and generate the output...
     pub_.publish(out_cloud);
