@@ -43,11 +43,12 @@ public:
     int h = msg->layout.dim[0].size;
     int w = msg->layout.dim[1].size;
     int stride = msg->layout.dim[1].stride;
-    geometry_msgs::Point32 p;
-    std::vector<ChannelFloat32> channels;
+    
+    std::vector<sensor_msgs::ChannelFloat32> channels;
     sensor_msgs::ChannelFloat32 channel;
     for (int i = 0; i < h; ++i)
     {
+      geometry_msgs::Point32 p;
       p.x = points_data[0 + i*stride];
       p.y = points_data[1 + i*stride];
       p.z = points_data[2 + i*stride];
