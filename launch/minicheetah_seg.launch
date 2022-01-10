@@ -1,7 +1,9 @@
 <launch>
 
-<node pkg="segmentation-ros-wrapper" name="minicheetah_segmentation_fixed_for.py" type="minicheetah_segmentation_fixed_for.py" output="screen">
-<node pkg="segmentation-ros-wrapper" name="pcl_converter_node" type="pcl_converter_node" output="screen">
+  <node pkg="segmentation-ros-wrapper" name="seg_node" type="minicheetah_segmentation_fixed_for.py" output="screen">
+  </node>
+  <node pkg="segmentation-ros-wrapper" name="pcl_converter_node" type="pcl_converter_node" output="screen">
+  </node>
 
 
 </launch>

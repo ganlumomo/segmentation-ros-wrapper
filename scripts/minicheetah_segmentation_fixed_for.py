@@ -184,6 +184,7 @@ class SegmentationNode:
         self.labeled_pc_pub.publish(to_publish)
 
 if __name__ == '__main__':
+    sys.aargv = rospy.myargv() # to enable roslaunch
     node = SegmentationNode()
     rospy.spin()
 
