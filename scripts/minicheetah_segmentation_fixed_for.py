@@ -26,6 +26,7 @@ from geometry_msgs.msg import Point32
 from cv_bridge import CvBridge, CvBridgeError
 import message_filters
 import ros_numpy
+from std_msgs import Float32MultiArray, MultiArrayDimension
 
 from copy import deepcopy
 
@@ -43,7 +44,8 @@ class SegmentationNode:
         self.semantic_pub = rospy.Publisher("semantic_seg", Image, queue_size = 1)
         self.trav_pub = rospy.Publisher("trav_seg", Image, queue_size = 1)
         #self.labeled_pc_pub = rospy.Publisher("labeled_pointcloud", PointCloud, queue_size = 1)
-        self.labeled_pcl2_pub = rospy.Publisher("labeled_pcl2", PointCloud2, queue_size = 1)
+        # self.labeled_pcl2_pub = rospy.Publisher("labeled_pcl2", PointCloud2, queue_size = 1)
+        self.labeled_pc_array_pub = rospy.Publisher("labeled_array", Float32MultiArray, queue_size=1)
         rospy.loginfo("Initialization Done. Running Inference...")
 
     def set_up(self):
@@ -126,6 +128,21 @@ class SegmentationNode:
         pcl2_msg = ros_numpy.msgify(PointCloud2, points)
         pcl2_msg.header = depth_msg.header
         self.labeled_pcl2_pub.publish(pcl2_msg)
+
+        # sjy change pointcloud2 to Float32MultiArray
+        points = np.array([px,py,pz,pred]).T # 4*N -> N*4
+        points_msg = Float32MultiArray()
+        points_msg.data = points.reshape([points.shape[0]*points.shape[1]]).tolist()
+        points_msg.layout.data_offset = 0
+        points_msg.layout.dim = [MultiArrayDimension(), MultiArrayDimension()]
+        points_msg.flow_data.layout.dim[0].label = "index"
+        points_msg.flow_data.layout.dim[0].size = points.shape[0]
+        points_msg.flow_data.layout.dim[0].stride = points.shape[0]*points.shape[1]
+        points_msg.flow_data.layout.dim[1].label = "position"
+        points_msg.flow_data.layout.dim[1].size = points.shape[1]
+        points_msg.flow_data.layout.dim[1].stride = points.shape[1]
+        self.labeled_pc_array_pub.publish(points_msg)
+
         return
 
         # for i in range(len(px)):

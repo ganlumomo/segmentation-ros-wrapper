@@ -2,6 +2,8 @@
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
+#include <std_msgs/Float32MultiArray.h>
+#include <geometry_msgs/Point32.h>
 
 // void pclConverterCallback(const sensor_msgs::Pointcloud2::ConstPtr& msg)
 // {
@@ -29,14 +31,27 @@ public:
     pub_ = n_.advertise<sensor_msgs::PointCloud>("/labeled_pointcloud", 1);
 
     //Topic you want to subscribe
-    sub_ = n_.subscribe("/labeled_pcl2", 1, &SubscribeAndPublish::callback, this);
+    sub_ = n_.subscribe("/labeled_array", 1, &SubscribeAndPublish::callback, this);
   }
 
-  void callback(const sensor_msgs::PointCloud2ConstPtr& msg)
+  void callback(const std_msgs::Float32MultiArrayConstPtr& msg)
   {
     sensor_msgs::PointCloud out_cloud;
-    sensor_msgs::convertPointCloud2ToPointCloud(*msg, out_cloud);
-    out_cloud.header.frame_id = msg->header.frame_id;
+    out_cloud.header.frame_id = "camera_color_optical_frame";
+    std::vector<float> points_data = msg.data;
+    int h = msg.layout.dim[0].size;
+    int w = msg.layout.dim[1].size;
+    int stride = flow->flow_data.layout.dim[1].stride;
+    geometry_msgs::Point32 p;
+    for (int i = 0; i < h; ++i)
+    {
+      p.x = points_data[0 + i*stride];
+      p.y = points_data[1 + i*stride];
+      p.z = points_data[2 + i*stride];
+      out_cloud.points.push_back(p);
+      out_cloud.channels.values.push_back(points_data[3 + i*stride];)
+    }
+    // sensor_msgs::convertPointCloud2ToPointCloud(*msg, out_cloud);
     //.... do something with the input and generate the output...
     pub_.publish(out_cloud);
   }
