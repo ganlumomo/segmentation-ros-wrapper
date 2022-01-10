@@ -38,19 +38,21 @@ public:
   {
     sensor_msgs::PointCloud out_cloud;
     out_cloud.header.frame_id = "camera_color_optical_frame";
-    std::vector<float> points_data = msg.data;
-    int h = msg.layout.dim[0].size;
-    int w = msg.layout.dim[1].size;
-    int stride = flow->flow_data.layout.dim[1].stride;
+    std::vector<float> points_data = msg->data;
+    int h = msg->layout.dim[0].size;
+    int w = msg->layout.dim[1].size;
+    int stride = msg->layout.dim[1].stride;
     geometry_msgs::Point32 p;
+    std::vector<float> values;
     for (int i = 0; i < h; ++i)
     {
       p.x = points_data[0 + i*stride];
       p.y = points_data[1 + i*stride];
       p.z = points_data[2 + i*stride];
       out_cloud.points.push_back(p);
-      out_cloud.channels.values.push_back(points_data[3 + i*stride];)
+      values.push_back(points_data[3 + i*stride]);
     }
+    out_cloud.channels.values = values;
     // sensor_msgs::convertPointCloud2ToPointCloud(*msg, out_cloud);
     //.... do something with the input and generate the output...
     pub_.publish(out_cloud);
