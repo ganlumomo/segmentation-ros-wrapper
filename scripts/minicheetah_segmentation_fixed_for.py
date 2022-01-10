@@ -25,8 +25,7 @@ from sensor_msgs.msg import Image, PointCloud, ChannelFloat32, PointCloud2
 from geometry_msgs.msg import Point32
 from cv_bridge import CvBridge, CvBridgeError
 import message_filters
-import ros_numpy
-from std_msgs import Float32MultiArray, MultiArrayDimension
+from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
 from copy import deepcopy
 
@@ -97,11 +96,11 @@ class SegmentationNode:
         self.get_labeled_pc(pred, colorized.convert('RGB'), depth_msg)
        
     def get_labeled_pc(self, pred, colorized, depth_msg):
-        to_publish = PointCloud()
-        to_publish.header = depth_msg.header
-        label_channel = ChannelFloat32()
-        label_channel.name = "labels"
-        label_channel.values = []
+        # to_publish = PointCloud()
+        # to_publish.header = depth_msg.header
+        # label_channel = ChannelFloat32()
+        # label_channel.name = "labels"
+        # label_channel.values = []
         br = CvBridge()
         depth_img = br.imgmsg_to_cv2(depth_msg, desired_encoding="16UC1")
         
